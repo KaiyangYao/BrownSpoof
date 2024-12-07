@@ -1,4 +1,6 @@
 #include <Arduino.h>
+#include "ArduinoGraphics.h"
+#include "Arduino_LED_Matrix.h"
 
 // Pin Definitions
 #define PIN_A       3      // L293D Output pin for track signal (1Y)
@@ -24,6 +26,8 @@ const int bitlen = 5;   // Bits per character for Track 2
 volatile int currentTrack2Index = 0;
 
 int polarity = 0;       // Coil direction toggle
+
+ArduinoLEDMatrix matrix;
 
 // Set polarity for the coil
 void setPolarity(int polarity) {
@@ -99,11 +103,22 @@ void playTrack2(const char* trackData) {
   Serial.println("Track playback complete.");
 }
 
+void displayIndexOnMatrix(int index) {
+  matrix.beginDraw();
+  matrix.textFont(Font_5x7);
+  matrix.beginText(4, 1, 0xFFFFFF);
+  matrix.println(index);
+  matrix.endText(NO_SCROLL);
+  matrix.endDraw();
+}
+
 void setup() {
   pinMode(PIN_A, OUTPUT);
   pinMode(PIN_B, OUTPUT);
   pinMode(ENABLE_PIN, OUTPUT);
   pinMode(BUTTON_PIN, INPUT_PULLUP);
+
+  matrix.begin();
 
   Serial.begin(9600);
   Serial.println("Setup complete. Waiting for button press.");
@@ -115,6 +130,8 @@ void loop() {
     if (digitalRead(BUTTON_PIN) == LOW) { // Confirm button press
       Serial.print("Button pressed. Spoofing Track 2 data index: ");
       Serial.println(currentTrack2Index);
+
+      displayIndexOnMatrix(currentTrack2Index);
       
       playTrack2(track2s[currentTrack2Index]);
       currentTrack2Index = (currentTrack2Index + 1) % numTrack2s;
