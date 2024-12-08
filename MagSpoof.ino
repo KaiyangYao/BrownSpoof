@@ -3,13 +3,14 @@
 #include "Arduino_LED_Matrix.h"
 
 // Pin Definitions
-#define PIN_A       3      // L293D Output pin for track signal (1Y)
-#define PIN_B       4      // L293D Output pin for track signal (2Y)
-#define ENABLE_PIN  13     // L293D Enable pin for the coil (EN1,2)
-#define BUTTON_PIN  2      // Button input for starting playback
-#define CLOCK_US    400    // Delay for bit transmission, in microseconds
-#define LEADING_ZEROS 25   // Number of leading zeros for synchronization
-#define TRAILING_ZEROS 25  // Number of trailing zeros for synchronization
+#define PIN_A       3       // L293D Output pin for track signal (1Y)
+#define PIN_B       4       // L293D Output pin for track signal (2Y)
+#define ENABLE_PIN  13      // L293D Enable pin for the coil (EN1,2)
+#define BUTTON_PIN  2       // Button input for starting playback
+#define BUTTON_PIN_SELECT 6 // Button input for select track index
+#define CLOCK_US    400     // Delay for bit transmission, in microseconds
+#define LEADING_ZEROS 25    // Number of leading zeros for synchronization
+#define TRAILING_ZEROS 25   // Number of trailing zeros for synchronization
 
 // Track2 Data Options
 const char* track2s[] = {
@@ -117,24 +118,33 @@ void setup() {
   pinMode(PIN_B, OUTPUT);
   pinMode(ENABLE_PIN, OUTPUT);
   pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(BUTTON_PIN_SELECT, INPUT_PULLUP);
 
   matrix.begin();
+  displayIndexOnMatrix(currentTrack2Index); // Display the initial index
 
   Serial.begin(9600);
   Serial.println("Setup complete. Waiting for button press.");
 }
 
 void loop() {
+  if (digitalRead(BUTTON_PIN_SELECT) == LOW) {
+    delay(50); // Debounce
+    if (digitalRead(BUTTON_PIN_SELECT) == LOW) {
+      currentTrack2Index = (currentTrack2Index + 1) % numTrack2s;
+      Serial.print("Selected index: ");
+      Serial.println(currentTrack2Index);
+      displayIndexOnMatrix(currentTrack2Index);
+    }
+    while (digitalRead(BUTTON_PIN_SELECT) == LOW); // Wait for button release
+  }
+
   if (digitalRead(BUTTON_PIN) == LOW) { // Button pressed
     delay(50); // Debounce
     if (digitalRead(BUTTON_PIN) == LOW) { // Confirm button press
       Serial.print("Button pressed. Spoofing Track 2 data index: ");
       Serial.println(currentTrack2Index);
-
-      displayIndexOnMatrix(currentTrack2Index);
-      
       playTrack2(track2s[currentTrack2Index]);
-      currentTrack2Index = (currentTrack2Index + 1) % numTrack2s;
     }
     while (digitalRead(BUTTON_PIN) == LOW); // Wait for button release
   }
