@@ -1,8 +1,8 @@
-#include <Arduino.h>
+#include <ArduinoHttpClient.h>
+#include <WiFiS3.h>
 #include "ArduinoGraphics.h"
 #include "Arduino_LED_Matrix.h"
 #include <WDT.h>
-#include <WiFiS3.h>
 
 // Pin Definitions
 #define PIN_A       3       // L293D Output pin for track signal (1Y)
@@ -15,7 +15,7 @@
 #define TRAILING_ZEROS 25   // Number of trailing zeros for synchronization
 
 // Track2 Data Options
-const char* track2s[] = {
+char* track2s[10] = {
   ";6009550002147835?",  // Anoop 1
   ";6009550001931114?",  // Alex 2 
   ";6009550002492900?",  // Korgan 3 
@@ -25,15 +25,23 @@ const char* track2s[] = {
 const int numTrack2s = sizeof(track2s) / sizeof(track2s[0]);
 const int sublen = 48;  // ASCII offsets for Track 2
 const int bitlen = 5;   // Bits per character for Track 2
-
-char ssid[] = "Pixel_2078";        // your network SSID (name)
-char pass[] = "embedded";    // your network password (use for WPA, or use as key for WEP)
-int status = WL_IDLE_STATUS;     // the WiFi radio's status
-
-
 volatile int currentTrack2Index = 0;
 
 int polarity = 0;       // Coil direction toggle
+
+// Wi-Fi and HTTP details
+// char ssid[] = "Pixel_2078";    // Replace with your hotspot name
+// char pass[] = "embedded";      // Replace with your hotspot password
+
+char ssid[] = "Pixel_2078";    // Replace with your hotspot name
+char pass[] = "embedded";      // Replace with your hotspot password
+
+char serverAddress[] = "magspoof-server.freesite.online"; // Server address
+int port = 80;                 // HTTP port
+
+WiFiClient wifi;
+HttpClient client = HttpClient(wifi, serverAddress, port);
+int status = WL_IDLE_STATUS;
 
 ArduinoLEDMatrix matrix;
 
@@ -120,6 +128,28 @@ void displayIndexOnMatrix(int index) {
   matrix.endDraw();
 }
 
+// Fetch data from the HTTP endpoint
+void fetchTrack2Data() {
+  Serial.println("Making GET request...");
+  client.get("/?route=track2s");
+
+  int statusCode = client.responseStatusCode();
+  String response = client.responseBody();
+
+  Serial.print("Status code: ");
+  Serial.println(statusCode);
+  Serial.print("Response: ");
+  Serial.println(response);
+
+  if (statusCode == 200) {
+    // Example: Update track2s array based on server response (assume JSON array)
+    // This part can be extended to parse the response dynamically
+    Serial.println("Fetched track data successfully.");
+  } else {
+    Serial.println("Failed to fetch track data.");
+  }
+}
+
 void setup() {
   pinMode(PIN_A, OUTPUT);
   pinMode(PIN_B, OUTPUT);
@@ -141,17 +171,17 @@ void setup() {
   while (status != WL_CONNECTED) {
     Serial.print("Attempting to connect to WPA SSID: ");
     Serial.println(ssid);
-    // Connect to WPA/WPA2 network:
     status = WiFi.begin(ssid, pass);
-
-    // wait 1 seconds for connection:
-    delay(1000);
+    delay(2000);
   }
 
-  // you're connected now, so print out the data:
-  Serial.print("You're connected to the network");
-}
+  Serial.println("Wi-Fi connected!");
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.localIP());
 
+  // Fetch initial data
+  fetchTrack2Data();
+}
 
 void loop() {
   if (digitalRead(BUTTON_PIN_SELECT) == LOW) {
@@ -162,8 +192,7 @@ void loop() {
       Serial.println(currentTrack2Index);
       displayIndexOnMatrix(currentTrack2Index);
     }
-    while (digitalRead(BUTTON_PIN_SELECT) == LOW); // Wait for button release
-    WDT.refresh();
+    while (digitalRead(BUTTON_PIN_SELECT) == LOW); // Wait for release
   }
 
   if (digitalRead(BUTTON_PIN) == LOW) { // Button pressed
@@ -173,8 +202,13 @@ void loop() {
       Serial.println(currentTrack2Index);
       playTrack2(track2s[currentTrack2Index]);
     }
-    while (digitalRead(BUTTON_PIN) == LOW); // Wait for button release
-    WDT.refresh();
+    while (digitalRead(BUTTON_PIN) == LOW); // Wait for release
   }
-  WDT.refresh();
+
+  // Periodically fetch new data every 60 seconds
+  static unsigned long lastFetchTime = 0;
+  if (millis() - lastFetchTime > 60000) {
+    fetchTrack2Data();
+    lastFetchTime = millis();
+  }
 }
