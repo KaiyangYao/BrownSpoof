@@ -2,6 +2,7 @@
 #include "ArduinoGraphics.h"
 #include "Arduino_LED_Matrix.h"
 #include <WDT.h>
+#include <WiFiS3.h>
 
 // Pin Definitions
 #define PIN_A       3       // L293D Output pin for track signal (1Y)
@@ -24,6 +25,11 @@ const char* track2s[] = {
 const int numTrack2s = sizeof(track2s) / sizeof(track2s[0]);
 const int sublen = 48;  // ASCII offsets for Track 2
 const int bitlen = 5;   // Bits per character for Track 2
+
+char ssid[] = "Pixel_2078";        // your network SSID (name)
+char pass[] = "embedded";    // your network password (use for WPA, or use as key for WEP)
+int status = WL_IDLE_STATUS;     // the WiFi radio's status
+
 
 volatile int currentTrack2Index = 0;
 
@@ -131,6 +137,19 @@ void setup() {
   } else {
     Serial.println("Failed to initialize watchdog.");
   }
+  // attempt to connect to WiFi network:
+  while (status != WL_CONNECTED) {
+    Serial.print("Attempting to connect to WPA SSID: ");
+    Serial.println(ssid);
+    // Connect to WPA/WPA2 network:
+    status = WiFi.begin(ssid, pass);
+
+    // wait 1 seconds for connection:
+    delay(1000);
+  }
+
+  // you're connected now, so print out the data:
+  Serial.print("You're connected to the network");
 }
 
 
