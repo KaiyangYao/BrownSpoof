@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "ArduinoGraphics.h"
 #include "Arduino_LED_Matrix.h"
+#include <WDT.h>
 
 // Pin Definitions
 #define PIN_A       3       // L293D Output pin for track signal (1Y)
@@ -125,7 +126,13 @@ void setup() {
 
   Serial.begin(9600);
   Serial.println("Setup complete. Waiting for button press.");
+  if (WDT.begin(4000)) {
+    Serial.println("Watchdog initialized with 4s timeout.");
+  } else {
+    Serial.println("Failed to initialize watchdog.");
+  }
 }
+
 
 void loop() {
   if (digitalRead(BUTTON_PIN_SELECT) == LOW) {
@@ -137,6 +144,7 @@ void loop() {
       displayIndexOnMatrix(currentTrack2Index);
     }
     while (digitalRead(BUTTON_PIN_SELECT) == LOW); // Wait for button release
+    WDT.refresh();
   }
 
   if (digitalRead(BUTTON_PIN) == LOW) { // Button pressed
@@ -147,5 +155,7 @@ void loop() {
       playTrack2(track2s[currentTrack2Index]);
     }
     while (digitalRead(BUTTON_PIN) == LOW); // Wait for button release
+    WDT.refresh();
   }
+  WDT.refresh();
 }
