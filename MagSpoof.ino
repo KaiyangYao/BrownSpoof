@@ -8,27 +8,31 @@
 #define PIN_A       3       // L293D Output pin for track signal (1Y)
 #define PIN_B       4       // L293D Output pin for track signal (2Y)
 #define ENABLE_PIN  13      // L293D Enable pin for the coil (EN1,2)
-#define BUTTON_PIN  2       // Button input for starting playback
+#define BUTTON_PIN  5       // Button input for starting playback
+#define BUTTON_PIN_SERVER 2        // initializing button for sync with server, use 2 or 3 for interrupt
 #define BUTTON_PIN_SELECT 6 // Button input for select track index
 #define CLOCK_US    400     // Delay for bit transmission, in microseconds
 #define LEADING_ZEROS 25    // Number of leading zeros for synchronization
 #define TRAILING_ZEROS 25   // Number of trailing zeros for synchronization
 
+
 // Track2 Data Options
-char track2s[10][32] = {""}; // Initialize all entries to empty strings
+char track2s[10][32] = {";0?"}; // Initialize all entries to empty strings
 int numTrack2s = 0;          // Count of currently loaded tracks
 const int sublen = 48;       // ASCII offsets for Track 2
 const int bitlen = 5;        // Bits per character for Track 2
 volatile int currentTrack2Index = 0;
+volatile bool getFlag = false;
+
 
 int polarity = 0;       // Coil direction toggle
 
 // Wi-Fi and HTTP details
-char ssid[] = "Pixel_2078";  // Replace with your hotspot name
-char pass[] = "embedded";    // Replace with your hotspot password
+char ssid[] = "Magspoof";  // Replace with your hotspot name
+char pass[] = "12345678";    // Replace with your hotspot password
 
 char serverAddress[] = "brown-spoof-server.vercel.app"; // Server address
-int port = 443;             // HTTP port
+int port = 443;             // HTTPS port
 
 WiFiSSLClient wifi;
 HttpClient client = HttpClient(wifi, serverAddress, port);
@@ -121,6 +125,7 @@ void displayIndexOnMatrix(int index) {
 
 // Fetch data from the HTTP endpoint
 void fetchTrack2Data() {
+  WDT.refresh();
   Serial.println("Making GET request...");
   client.get("/track2s");
 
@@ -168,6 +173,8 @@ void fetchTrack2Data() {
       Serial.print(i + 1);
       Serial.print(": ");
       Serial.println(track2s[i]);
+      WDT.refresh();
+      
     }
   } else {
     Serial.println("Failed to fetch track data.");
@@ -180,14 +187,16 @@ void setup() {
   pinMode(ENABLE_PIN, OUTPUT);
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   pinMode(BUTTON_PIN_SELECT, INPUT_PULLUP);
+  pinMode(BUTTON_PIN_SERVER, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN_SERVER), getISR, FALLING);
 
   matrix.begin();
   displayIndexOnMatrix(currentTrack2Index); // Display the initial index
 
   Serial.begin(9600);
   Serial.println("Setup complete. Waiting for button press.");
-  if (WDT.begin(4000)) {
-    Serial.println("Watchdog initialized with 4s timeout.");
+  if (WDT.begin(5000)) {
+    Serial.println("Watchdog initialized with 5s timeout.");
   } else {
     Serial.println("Failed to initialize watchdog.");
   }
@@ -203,12 +212,17 @@ void setup() {
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
 
-  // Fetch initial data
-  fetchTrack2Data();
+  
+}
+//ISR intialization
+void getISR() {
+  getFlag = true;  
 }
 
 void loop() {
+  
   if (digitalRead(BUTTON_PIN_SELECT) == LOW) {
+    // noInterrupts();
     delay(50); // Debounce
     if (digitalRead(BUTTON_PIN_SELECT) == LOW) {
       currentTrack2Index = (currentTrack2Index + 1) % numTrack2s;
@@ -218,9 +232,11 @@ void loop() {
     }
     while (digitalRead(BUTTON_PIN_SELECT) == LOW); // Wait for release
     WDT.refresh();
+    interrupts();
   }
 
   if (digitalRead(BUTTON_PIN) == LOW) { // Button pressed
+    // noInterrupts();
     delay(50); // Debounce
     if (digitalRead(BUTTON_PIN) == LOW) { // Confirm button press
       Serial.print("Button pressed. Spoofing Track 2 data index: ");
@@ -231,11 +247,22 @@ void loop() {
     WDT.refresh();
   }
 
-  // Periodically fetch new data every 60 seconds
-  static unsigned long lastFetchTime = 0;
-  if (millis() - lastFetchTime > 60000) {
+
+  if (getFlag) {
+    //turning interrupt service off
+    Serial.println("Fetching track data...");
+
+    
+    // Fetch track data
     fetchTrack2Data();
-    lastFetchTime = millis();
+
+    detachInterrupt(digitalPinToInterrupt(BUTTON_PIN_SERVER));
+    delay(3000);
+    attachInterrupt(digitalPinToInterrupt(BUTTON_PIN_SERVER), getISR, FALLING);
+    getFlag = false;
+    WDT.refresh();
   }
   WDT.refresh();
 }
+
+
