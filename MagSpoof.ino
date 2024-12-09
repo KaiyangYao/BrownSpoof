@@ -15,29 +15,20 @@
 #define TRAILING_ZEROS 25   // Number of trailing zeros for synchronization
 
 // Track2 Data Options
-char* track2s[10] = {
-  ";6009550002147835?",  // Anoop 1
-  ";6009550001931114?",  // Alex 2 
-  ";6009550002492900?",  // Korgan 3 
-  ";6009550002372300?"   // Kaiyang 4 
-};
-
-const int numTrack2s = sizeof(track2s) / sizeof(track2s[0]);
-const int sublen = 48;  // ASCII offsets for Track 2
-const int bitlen = 5;   // Bits per character for Track 2
+char track2s[10][32] = {""}; // Initialize all entries to empty strings
+int numTrack2s = 0;          // Count of currently loaded tracks
+const int sublen = 48;       // ASCII offsets for Track 2
+const int bitlen = 5;        // Bits per character for Track 2
 volatile int currentTrack2Index = 0;
 
 int polarity = 0;       // Coil direction toggle
 
 // Wi-Fi and HTTP details
-// char ssid[] = "Pixel_2078";    // Replace with your hotspot name
-// char pass[] = "embedded";      // Replace with your hotspot password
-
-char ssid[] = "Pixel_2078";    // Replace with your hotspot name
-char pass[] = "embedded";      // Replace with your hotspot password
+char ssid[] = "Pixel_2078";  // Replace with your hotspot name
+char pass[] = "embedded";    // Replace with your hotspot password
 
 char serverAddress[] = "brown-spoof-server.vercel.app"; // Server address
-int port = 443;                 // HTTP port
+int port = 443;             // HTTP port
 
 WiFiSSLClient wifi;
 HttpClient client = HttpClient(wifi, serverAddress, port);
@@ -142,9 +133,42 @@ void fetchTrack2Data() {
   Serial.println(response);
 
   if (statusCode == 200) {
-    // Example: Update track2s array based on server response (assume JSON array)
-    // This part can be extended to parse the response dynamically
-    Serial.println("Fetched track data successfully.");
+    // Clean up the response
+    response.replace("[", "");  // Remove opening bracket
+    response.replace("]", "");  // Remove closing bracket
+    response.replace("\"", ""); // Remove quotes
+
+    numTrack2s = 0;
+
+    // Split the response by commas and populate the track2s array
+    int start = 0;
+    int end = response.indexOf(",");
+    while (end != -1 && numTrack2s < 10) {
+      String track = response.substring(start, end);
+      track.trim();
+      strncpy(track2s[numTrack2s], track.c_str(), 32);      // Copy to array
+      track2s[numTrack2s][31] = '\0';                       // Null-terminate
+      numTrack2s++;
+      start = end + 1;
+      end = response.indexOf(",", start);
+    }
+
+    // Add the last track
+    if (numTrack2s < 10) {
+      String track = response.substring(start, end);
+      track.trim();
+      strncpy(track2s[numTrack2s], track.c_str(), 32);
+      track2s[numTrack2s][31] = '\0'; // Null-terminate
+      numTrack2s++;
+    }
+
+    Serial.println("Fetched and updated Track 2 data:");
+    for (int i = 0; i < numTrack2s; i++) {
+      Serial.print("Track ");
+      Serial.print(i + 1);
+      Serial.print(": ");
+      Serial.println(track2s[i]);
+    }
   } else {
     Serial.println("Failed to fetch track data.");
   }
@@ -193,6 +217,7 @@ void loop() {
       displayIndexOnMatrix(currentTrack2Index);
     }
     while (digitalRead(BUTTON_PIN_SELECT) == LOW); // Wait for release
+    WDT.refresh();
   }
 
   if (digitalRead(BUTTON_PIN) == LOW) { // Button pressed
@@ -203,6 +228,7 @@ void loop() {
       playTrack2(track2s[currentTrack2Index]);
     }
     while (digitalRead(BUTTON_PIN) == LOW); // Wait for release
+    WDT.refresh();
   }
 
   // Periodically fetch new data every 60 seconds
@@ -211,4 +237,5 @@ void loop() {
     fetchTrack2Data();
     lastFetchTime = millis();
   }
+  WDT.refresh();
 }
