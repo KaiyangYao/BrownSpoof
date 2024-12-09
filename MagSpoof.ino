@@ -36,10 +36,10 @@ int polarity = 0;       // Coil direction toggle
 char ssid[] = "Pixel_2078";    // Replace with your hotspot name
 char pass[] = "embedded";      // Replace with your hotspot password
 
-char serverAddress[] = "magspoof-server.freesite.online"; // Server address
-int port = 80;                 // HTTP port
+char serverAddress[] = "brown-spoof-server.vercel.app"; // Server address
+int port = 443;                 // HTTP port
 
-WiFiClient wifi;
+WiFiSSLClient wifi;
 HttpClient client = HttpClient(wifi, serverAddress, port);
 int status = WL_IDLE_STATUS;
 
@@ -131,7 +131,7 @@ void displayIndexOnMatrix(int index) {
 // Fetch data from the HTTP endpoint
 void fetchTrack2Data() {
   Serial.println("Making GET request...");
-  client.get("/?route=track2s");
+  client.get("/track2s");
 
   int statusCode = client.responseStatusCode();
   String response = client.responseBody();
