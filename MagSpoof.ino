@@ -28,8 +28,10 @@ volatile bool getFlag = false;
 int polarity = 0;       // Coil direction toggle
 
 // Wi-Fi and HTTP details
-char ssid[] = "Magspoof";  // Replace with your hotspot name
-char pass[] = "12345678";    // Replace with your hotspot password
+// char ssid[] = "Magspoof";  // Replace with your hotspot name
+// char pass[] = "12345678";    // Replace with your hotspot password
+char ssid[] = "Brown-Guest";  // Replace with your hotspot name
+// char pass = null;    // Replace with your hotspot password
 
 char serverAddress[] = "brown-spoof-server.vercel.app"; // Server address
 int port = 443;             // HTTPS port
@@ -126,8 +128,16 @@ void displayIndexOnMatrix(int index) {
 // Fetch data from the HTTP endpoint
 void fetchTrack2Data() {
   WDT.refresh();
+
+  matrix.loadSequence(LEDMATRIX_ANIMATION_WIFI_SEARCH);
+  matrix.beginDraw();
+  matrix.play(true);
+
+
   Serial.println("Making GET request...");
+  client.setTimeout(500);
   client.get("/track2s");
+
 
   int statusCode = client.responseStatusCode();
   String response = client.responseBody();
@@ -137,7 +147,16 @@ void fetchTrack2Data() {
   Serial.print("Response: ");
   Serial.println(response);
 
+  WDT.refresh();
+
   if (statusCode == 200) {
+    matrix.endDraw();
+    matrix.loadSequence(LEDMATRIX_ANIMATION_CHECK);
+    matrix.beginDraw();
+    matrix.play(true);
+    delay(2000);
+    matrix.endDraw();
+
     // Clean up the response
     response.replace("[", "");  // Remove opening bracket
     response.replace("]", "");  // Remove closing bracket
@@ -174,9 +193,14 @@ void fetchTrack2Data() {
       Serial.print(": ");
       Serial.println(track2s[i]);
       WDT.refresh();
-      
     }
   } else {
+    matrix.endDraw();
+    matrix.loadSequence(LEDMATRIX_ANIMATION_BUG);
+    matrix.beginDraw();
+    matrix.play(true);
+    delay(2000);
+    matrix.endDraw();
     Serial.println("Failed to fetch track data.");
   }
 }
@@ -204,8 +228,9 @@ void setup() {
   while (status != WL_CONNECTED) {
     Serial.print("Attempting to connect to WPA SSID: ");
     Serial.println(ssid);
-    status = WiFi.begin(ssid, pass);
+    status = WiFi.begin(ssid);
     delay(2000);
+    WDT.refresh();
   }
 
   Serial.println("Wi-Fi connected!");
@@ -222,9 +247,8 @@ void getISR() {
 void loop() {
   
   if (digitalRead(BUTTON_PIN_SELECT) == LOW) {
-    // noInterrupts();
     delay(50); // Debounce
-    if (digitalRead(BUTTON_PIN_SELECT) == LOW) {
+    if (digitalRead(BUTTON_PIN_SELECT) == LOW && numTrack2s != 0) {
       currentTrack2Index = (currentTrack2Index + 1) % numTrack2s;
       Serial.print("Selected index: ");
       Serial.println(currentTrack2Index);
@@ -232,13 +256,11 @@ void loop() {
     }
     while (digitalRead(BUTTON_PIN_SELECT) == LOW); // Wait for release
     WDT.refresh();
-    interrupts();
   }
 
   if (digitalRead(BUTTON_PIN) == LOW) { // Button pressed
-    // noInterrupts();
     delay(50); // Debounce
-    if (digitalRead(BUTTON_PIN) == LOW) { // Confirm button press
+    if (digitalRead(BUTTON_PIN) == LOW && numTrack2s != 0) { // Confirm button press
       Serial.print("Button pressed. Spoofing Track 2 data index: ");
       Serial.println(currentTrack2Index);
       playTrack2(track2s[currentTrack2Index]);
@@ -257,7 +279,6 @@ void loop() {
     fetchTrack2Data();
 
     detachInterrupt(digitalPinToInterrupt(BUTTON_PIN_SERVER));
-    delay(3000);
     attachInterrupt(digitalPinToInterrupt(BUTTON_PIN_SERVER), getISR, FALLING);
     getFlag = false;
     WDT.refresh();
