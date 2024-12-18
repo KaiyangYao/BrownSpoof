@@ -1,7 +1,7 @@
 # **BrownSpoof**  
 
 ## **Overview**  
-**BrownSpoof** is an embedded system that emulates the magnetic stripe signal of a credit card, access card, or other magnetic stripe devices. Using an **H-bridge**, **coil**, and **Arduino microcontroller**, it generates a magnetic signal that can be read by standard card readers. The system allows for **real-time updates to Track 2 data** via **Wi-Fi**, enabling dynamic card data changes without manual reprogramming.  
+**BrownSpoof** is an embedded system that emulates the magnetic stripe signal of a **Brown University ID card**. Using an **H-bridge**, **coil**, and **Arduino microcontroller**, it generates a magnetic signal that can be read by standard card readers used on campus. The system allows for **real-time updates to Track 2 data** via **Wi-Fi**, enabling dynamic card data changes without manual reprogramming.
 
 This project draws inspiration from **[Samy Kamkar's MagSpoof](https://github.com/samyk/magspoof)** and builds on its concepts with support for **Wi-Fi connectivity**, **dynamic data updates**, and **LED matrix status feedback**.  
 
@@ -25,7 +25,7 @@ This project draws inspiration from **[Samy Kamkar's MagSpoof](https://github.co
 ## **How to Use**  
 1. **Setup**  
    - Connect the H-bridge, coil, LED matrix, and buttons to the Arduino.  
-   - Upload the provided **BrownSpoof.ino** file to your Arduino board.  
+   - Upload the provided **MagSpoof.ino** file to your Arduino board.  
 
 2. **Run the System**  
    - Power on the device. It will attempt to connect to Wi-Fi.  
